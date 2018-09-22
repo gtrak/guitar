@@ -1,0 +1,6 @@
+* Drills
+  - Note at fret
+    - Prompt
+      - type it
+    - Keep track of note accuracy and fretboard-area accuracy/time
+  - Given current note
