@@ -1,4 +1,7 @@
-(ns guitar.core)
+(ns guitar.core
+  (:require [clojure.tools.cli :refer [parse-opts]]
+            [clojure.string :as s])
+  (:gen-class))
 
 (def all-the-notes
   [[:A]
@@ -23,7 +26,7 @@
 
 (defn note-str
   [a]
-  (clojure.string/lower-case (name a)))
+  (s/lower-case (name a)))
 
 (def same-notes-strtable
   (reduce-kv (fn [acc k v]
@@ -86,14 +89,14 @@
            " Note: " (name note)
            " Fret?")
   (if-let [l (read-line)]
-    (clojure.string/trim l)))
+    (s/trim l)))
 
 (defn prompt-fret [string fret]
   (println "String: " (name string)
            " Fret: " fret
            " Note?")
   (if-let [l (read-line)]
-    (clojure.string/trim l)))
+    (s/trim l)))
 
 (defrecord GuitarNote [string note frets])
 
@@ -151,10 +154,14 @@
   ;; Display the the right answer?
   (correct-answer [this note]))
 
+(def ^:dynamic *gen*
+  #_(partial between-frets 5 9)
+  (partial between-frets 0 11))
+
 (def fretmode
   (reify GameMode
     (gen [this]
-      (between-frets 5 9))
+      (*gen*))
     (prompt [this note]
       (let [{:keys [string note frets]} note]
         (prompt-fret string (rand-nth frets))))
@@ -166,7 +173,7 @@
 (def notemode
   (reify GameMode
     (gen [this]
-      (between-frets 5 9))
+      (*gen*))
     (prompt [this note]
       (let [{:keys [string note frets]} note]
         (prompt-string string note)))
@@ -178,16 +185,36 @@
 
 (defn game
   [mode]
+  (println "Starting the fret game! Enter no input or EOF to quit")
   (loop [notes (gen mode)]
     (let [[note & more] notes
           input (prompt mode note)]
       (when (seq input)
-        (println input)
         (if (check mode note input)
-          (println "Correct!")
-          (println "Incorrect! It was "
+          (println input "is correct!")
+          (println "Incorrect! It was"
                    (correct-answer mode note)))
         (recur more)))))
 
-;; (game)
+(def cli-options
+  ;; An option with a required argument
+  [["-m" "--mode MODE" "Game mode (guess 'note' or 'fret')"
+    :default :note
+    :id :mode
+    :parse-fn #(keyword (s/lower-case %))
+    :validate [#{:note :fret} "Must be either 'note' or 'fret' between 0 and 65536"]]
+   ;; A boolean option defaulting to nil
+   ["-h" nil "Print this help"
+    :id :help
+    :default nil]])
+
+(defn -main [& args]
+  (let [{:keys [options arguments summary errors]}
+        (parse-opts args cli-options)]
+    (if (:help options)
+      (println summary)
+      (game (case (:mode options)
+              :note notemode
+              :fret fretmode)))))
+
 
