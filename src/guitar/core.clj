@@ -93,7 +93,8 @@
 
 ;; (notes-of-fret :E 1)
 
-(defn prompt [string note]
+(defn prompt-string
+  [string note]
   (println "String: " (name string)
            " Note: " (name note)
            " Fret?")
@@ -154,25 +155,51 @@
 
 ;; (take 5 (between-frets 8 12))
 
+(defprotocol GameMode
+  (gen [this])
+  ;; Given a generated note, prompt for input
+  (prompt [this note])
+  ;; Given a generated note and input, return truthy if they're equivalent
+  (check [this note input])
+  ;; Display the the right answer?
+  (correct-answer [this note]))
 
+(def fretmode
+  (reify GameMode
+    (gen [this]
+      (partial between-frets 5 9))
+    (prompt [this note]
+      (let [{:keys [string note frets]} note]
+        (prompt-fret string (rand-nth frets))))
+    (check [this note input]
+      (same-note? (:note note) input))
+    (correct-answer [this note]
+      (name (:note note)))))
+
+(def notemode
+  (reify GameMode
+    (gen [this]
+      (partial between-frets 5 9))
+    (prompt [this note]
+      (let [{:keys [string note frets]} note]
+        (prompt-string string note)))
+    (check [this note input]
+      ((set (:frets note))
+       (read-string input)))
+    (correct-answer [this note]
+      (:frets note))))
 
 (defn game
-  []
-  (let [gen (partial between-frets 5 9)]
+  [mode]
+  (let [gen (gen mode)]
     (loop [notes (gen)]
-      (let [[{:keys [string note frets]} & more] notes
-            ;;frets (set frets)
-            ;;input (prompt string note)
-            input (prompt-fret string (rand-nth frets))]
+      (let [[note & more] notes
+            input (prompt mode note)]
         (when (seq input)
           (println input)
-          ;; TODO: d#/eb are same note
-          (if (same-note? note input)
-            ;;(frets (read-string input))
+          (if (check mode note input)
             (println "Correct!")
-            ;;(println "Incorrect! It was " frets)
-            (println "Incorrect! It was " (name note))
-            )
+            (println "Incorrect! It was " (correct-answer mode note)))
           (recur more))))))
 
 ;; (game)
