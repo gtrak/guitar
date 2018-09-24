@@ -16,23 +16,10 @@
 
 (def same-notes
   "Normalize sharps to flats"
-  {:A :A
-   :A# :Bb
-   :Bb :Bb
-   :B :B
-   :C :C
-   :C# :Db
-   :Db :Db
-   :D :D
-   :D# :Eb
-   :Eb :Eb
-   :E :E
-   :F :F
-   :F# :Gb
-   :Gb :Gb
-   :G :G
-   :G# :Ab
-   :Ab :Ab})
+  (into {}
+        (for [[alias :as note-names] all-the-notes
+              note note-names]
+          [note alias])))
 
 (defn note-str
   [a]
@@ -167,7 +154,7 @@
 (def fretmode
   (reify GameMode
     (gen [this]
-      (partial between-frets 5 9))
+      (between-frets 5 9))
     (prompt [this note]
       (let [{:keys [string note frets]} note]
         (prompt-fret string (rand-nth frets))))
@@ -179,7 +166,7 @@
 (def notemode
   (reify GameMode
     (gen [this]
-      (partial between-frets 5 9))
+      (between-frets 5 9))
     (prompt [this note]
       (let [{:keys [string note frets]} note]
         (prompt-string string note)))
@@ -191,16 +178,16 @@
 
 (defn game
   [mode]
-  (let [gen (gen mode)]
-    (loop [notes (gen)]
-      (let [[note & more] notes
-            input (prompt mode note)]
-        (when (seq input)
-          (println input)
-          (if (check mode note input)
-            (println "Correct!")
-            (println "Incorrect! It was " (correct-answer mode note)))
-          (recur more))))))
+  (loop [notes (gen mode)]
+    (let [[note & more] notes
+          input (prompt mode note)]
+      (when (seq input)
+        (println input)
+        (if (check mode note input)
+          (println "Correct!")
+          (println "Incorrect! It was "
+                   (correct-answer mode note)))
+        (recur more)))))
 
 ;; (game)
 
