@@ -20,7 +20,7 @@
 (def same-notes
   "Normalize sharps to flats"
   (into {}
-        (for [[alias :as note-names] all-the-notes
+        (for [[alias :as note-names] (concat all-the-notes)
               note note-names]
           [note alias])))
 
@@ -96,13 +96,20 @@
            " Fret: " fret
            " Note?")
   (if-let [l (read-line)]
-    (s/trim l)))
+    (-> (s/trim l)
+        ;; Allow s as a shortcut for #
+        (s/replace #"s" "#"))))
 
 (defrecord GuitarNote [string note frets])
 
+(defn shuffle-cat-gen
+  "Given a sequence of valid notes, keep generating permutations ad infinitum"
+  [s]
+  (apply concat (repeatedly #(shuffle s))))
+
 (defn random-notes
   []
-  (apply concat (repeatedly #(shuffle all-the-notes))))
+  (shuffle-cat-gen all-the-notes))
 
 (defn string-note
   [string note]
@@ -131,15 +138,16 @@
   [a b]
   (let [[min max] [(min a b)
                    (max a b)]]
-    (mapcat
-     (fn [note-names]
-       (for [string strings
-             :let [note (string-note string (rand-nth note-names))]
-             :when (some (fn [fret]
-                           (<= min fret max))
-                         (:frets note))]
-         note))
-     (random-notes))))
+    (->> all-the-notes
+         (mapcat
+          (fn [note-names]
+            (for [string strings
+                  :let [note (string-note string (rand-nth note-names))]
+                  :when (some (fn [fret]
+                                (<= min fret max))
+                              (:frets note))]
+              note)))
+         shuffle-cat-gen)))
 
 ;; (take 5 (between-frets 8 12))
 
@@ -183,14 +191,15 @@
 
 (defn game
   [mode]
-  (println "Starting the fret game! Enter no input or EOF to quit")
+  (println "Starting the fret game! Enter no input or EOF to quit.
+Note input is case-insensitive, 's' is an alias for '#'")
   (loop [notes (gen mode)]
     (let [[note & more] notes
           input (prompt mode note)]
       (when (seq input)
         (if (check mode note input)
           (println input "is correct!")
-          (println "Incorrect! It was"
+          (println input "is incorrect! It was"
                    (correct-answer mode note)))
         (recur more)))))
 
