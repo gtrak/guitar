@@ -102,9 +102,7 @@
 
 (defn random-notes
   []
-  (->> all-the-notes
-       shuffle
-       cycle))
+  (apply concat (repeatedly #(shuffle all-the-notes))))
 
 (defn string-note
   [string note]
